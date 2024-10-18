@@ -1,0 +1,32 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+}
+
+@section Scripts {
+    <script src="~/js/html5-qrcode.min.js"></script>
+
+    <script>
+        function onScanSuccess(decodedText, decodedResult) {
+            // Handle on success condition with the decoded text or result.
+            document.getElementById('result').innerHTML = `<strong>結果：</strong> ${decodedText}`;
+            console.log(`解碼成功: ${decodedText}`, decodedResult);
+        }
+
+        function onScanFailure(error) {
+            // handle scan failure, usually better to ignore and let the scanner continue scanning.
+            console.warn(`掃描失敗: ${error}`);
+        }
+
+        let html5QrcodeScanner = new Html5QrcodeScanner("reader", {
+            fps: 10,
+            qrbox: { width: 250, height: 250 }
+        });
+
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    </script>
+}
+
+<h2>QR Code 掃描</h2>
+
+<div style="width: 500px" id="reader"></div>
+<div id="result"></div>
