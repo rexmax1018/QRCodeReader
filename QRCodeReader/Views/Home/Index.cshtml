@@ -1,32 +1,79 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "WebRTC Webcam";
 }
+
+<section class="container mt-4" id="demo-content">
+    <div class="mb-3">
+        <button class="btn btn-primary me-2" id="startButton">開始</button>
+        <button class="btn btn-secondary" id="resetButton">重置</button>
+    </div>
+
+    <div class="mb-3">
+        <video id="video" class="border border-gray rounded" width="400" height="200"></video>
+    </div>
+
+    <div id="sourceSelectPanel" class="mb-3" style="display: none;">
+        <label for="sourceSelect" class="form-label">變更攝影機:</label>
+        <select id="sourceSelect" class="form-select" style="max-width:400px"></select>
+    </div>
+
+    <label class="form-label">掃描結果:</label>
+    <pre class="bg-light p-2 rounded"><code id="result"></code></pre>
+</section>
 
 @section Scripts {
-    <script src="~/js/html5-qrcode.min.js"></script>
+    <!-- ZXing Library -->
+    <script src="~/lib/zxing.js"></script>
 
-    <script>
-        function onScanSuccess(decodedText, decodedResult) {
-            // Handle on success condition with the decoded text or result.
-            document.getElementById('result').innerHTML = `<strong>結果：</strong> ${decodedText}`;
-            console.log(`解碼成功: ${decodedText}`, decodedResult);
-        }
+    <script type="text/javascript">
+        $(document).ready(function () {
+            let selectedDeviceId;
+            const codeReader = new ZXing.BrowserMultiFormatReader();
+            console.log('ZXing code reader initialized');
 
-        function onScanFailure(error) {
-            // handle scan failure, usually better to ignore and let the scanner continue scanning.
-            console.warn(`掃描失敗: ${error}`);
-        }
+            // List video input devices and populate the select dropdown
+            codeReader.listVideoInputDevices()
+                .then((videoInputDevices) => {
+                    const $sourceSelect = $('#sourceSelect');
+                    selectedDeviceId = videoInputDevices[0].deviceId;
 
-        let html5QrcodeScanner = new Html5QrcodeScanner("reader", {
-            fps: 10,
-            qrbox: { width: 250, height: 250 }
+                    if (videoInputDevices.length >= 1) {
+                        videoInputDevices.forEach((device) => {
+                            $sourceSelect.append(new Option(device.label, device.deviceId));
+                        });
+
+                        $sourceSelect.on('change', function () {
+                            selectedDeviceId = $(this).val();
+                        });
+
+                        $('#sourceSelectPanel').show();
+                    }
+
+                    // Start button click event
+                    $('#startButton').on('click', function () {
+                        codeReader.decodeFromVideoDevice(selectedDeviceId, 'video', (result, err) => {
+                            if (result) {
+                                console.log(result);
+                                $('#result').text(result.text);
+                            }
+                            if (err && !(err instanceof ZXing.NotFoundException)) {
+                                console.error(err);
+                                $('#result').text(err);
+                            }
+                        });
+                        console.log(`Started continuous decode from camera with id ${selectedDeviceId}`);
+                    });
+
+                    // Reset button click event
+                    $('#resetButton').on('click', function () {
+                        codeReader.reset();
+                        $('#result').text('');
+                        console.log('Reset.');
+                    });
+                })
+                .catch((err) => {
+                    console.error(err);
+                });
         });
-
-        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
     </script>
 }
-
-<h2>QR Code 掃描</h2>
-
-<div style="width: 500px" id="reader"></div>
-<div id="result"></div>
