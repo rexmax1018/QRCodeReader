@@ -8,8 +8,20 @@
         <button class="btn btn-secondary" id="resetButton">重置</button>
     </div>
 
+    <div class="mb-3" style="width: 400px; height: 200px; overflow: hidden; position: relative;">
+        <video id="video" class="border border-gray rounded" width="100%" height="100%"
+               style="filter: grayscale(0); transform: scale(1); transform-origin: center center; position: absolute; left: 0; top: 0;">
+        </video>
+    </div>
+
     <div class="mb-3">
-        <video id="video" class="border border-gray rounded" width="400" height="200"></video>
+        <label for="grayscaleRange" class="form-label">灰階效果：</label>
+        <input type="range" id="grayscaleRange" class="form-range" min="0" max="100" value="0" step="1">
+    </div>
+
+    <div class="mb-3">
+        <label for="zoomRange" class="form-label">縮放比例：</label>
+        <input type="range" id="zoomRange" class="form-range" min="1" max="3" value="1" step="0.1">
     </div>
 
     <div id="sourceSelectPanel" class="mb-3" style="display: none;">
@@ -29,7 +41,21 @@
         $(document).ready(function () {
             let selectedDeviceId;
             const codeReader = new ZXing.BrowserMultiFormatReader();
+            const videoElement = $('#video');
+
             console.log('ZXing code reader initialized');
+
+            // 灰階處理調整
+            $('#grayscaleRange').on('input', function () {
+                const grayscaleValue = $(this).val();
+                videoElement.css('filter', `grayscale(${grayscaleValue}%)`);
+            });
+
+            // Zoom縮放調整
+            $('#zoomRange').on('input', function () {
+                const zoomValue = $(this).val();
+                videoElement.css('transform', `scale(${zoomValue})`);
+            });
 
             // List video input devices and populate the select dropdown
             codeReader.listVideoInputDevices()
@@ -68,6 +94,10 @@
                     $('#resetButton').on('click', function () {
                         codeReader.reset();
                         $('#result').text('');
+                        videoElement.css('filter', 'grayscale(0)');
+                        videoElement.css('transform', 'scale(1)');
+                        $('#grayscaleRange').val(0);
+                        $('#zoomRange').val(1);
                         console.log('Reset.');
                     });
                 })
