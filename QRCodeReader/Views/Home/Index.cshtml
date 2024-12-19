@@ -8,27 +8,41 @@
         <button class="btn btn-secondary" id="resetButton">重置</button>
     </div>
 
+    <!-- 父容器 -->
     <div class="mb-3" style="width: 400px; height: 200px; overflow: hidden; position: relative;">
         <video id="video" class="border border-gray rounded" width="100%" height="100%"
-               style="filter: grayscale(0); transform: scale(1); transform-origin: center center; position: absolute; left: 0; top: 0;">
+               style="filter: grayscale(0%) brightness(1); transform: scale(1); transform-origin: center center; position: absolute; left: 0; top: 0;">
         </video>
     </div>
 
+    <!-- 灰階拉桿 -->
     <div class="mb-3">
         <label for="grayscaleRange" class="form-label">灰階效果：</label>
-        <input type="range" id="grayscaleRange" class="form-range" min="0" max="100" value="0" step="1">
+        <input type="range" id="grayscaleRange" class="form-range" min="0" max="100" value="50" step="1">
+        <input type="number" id="grayscaleInput" class="form-control mt-2" min="0" max="100" value="50" step="1" style="width: 80px; display: inline-block;">
     </div>
 
+    <!-- 亮度拉桿 -->
+    <div class="mb-3">
+        <label for="brightnessRange" class="form-label">亮度：</label>
+        <input type="range" id="brightnessRange" class="form-range" min="0.5" max="2" value="1.5" step="0.1">
+        <input type="number" id="brightnessInput" class="form-control mt-2" min="0.5" max="2" value="1.5" step="0.1" style="width: 80px; display: inline-block;">
+    </div>
+
+    <!-- 縮放比例拉桿 -->
     <div class="mb-3">
         <label for="zoomRange" class="form-label">縮放比例：</label>
-        <input type="range" id="zoomRange" class="form-range" min="1" max="3" value="1" step="0.1">
+        <input type="range" id="zoomRange" class="form-range" min="1" max="3" value="1.2" step="0.1">
+        <input type="number" id="zoomInput" class="form-control mt-2" min="1" max="3" value="1.2" step="0.1" style="width: 80px; display: inline-block;">
     </div>
 
+    <!-- 攝影機選擇 -->
     <div id="sourceSelectPanel" class="mb-3" style="display: none;">
         <label for="sourceSelect" class="form-label">變更攝影機:</label>
         <select id="sourceSelect" class="form-select" style="max-width:400px"></select>
     </div>
 
+    <!-- 掃描結果 -->
     <label class="form-label">掃描結果:</label>
     <pre class="bg-light p-2 rounded"><code id="result"></code></pre>
 </section>
@@ -45,25 +59,13 @@
 
             console.log('ZXing code reader initialized');
 
-            // 灰階處理調整
-            $('#grayscaleRange').on('input', function () {
-                const grayscaleValue = $(this).val();
-                videoElement.css('filter', `grayscale(${grayscaleValue}%)`);
-            });
-
-            // Zoom縮放調整
-            $('#zoomRange').on('input', function () {
-                const zoomValue = $(this).val();
-                videoElement.css('transform', `scale(${zoomValue})`);
-            });
-
-            // List video input devices and populate the select dropdown
+            // 初始化攝影機選項
             codeReader.listVideoInputDevices()
                 .then((videoInputDevices) => {
                     const $sourceSelect = $('#sourceSelect');
-                    selectedDeviceId = videoInputDevices[0].deviceId;
+                    selectedDeviceId = videoInputDevices[0]?.deviceId || null;
 
-                    if (videoInputDevices.length >= 1) {
+                    if (videoInputDevices.length > 0) {
                         videoInputDevices.forEach((device) => {
                             $sourceSelect.append(new Option(device.label, device.deviceId));
                         });
@@ -75,8 +77,16 @@
                         $('#sourceSelectPanel').show();
                     }
 
-                    // Start button click event
+                    // 啟動攝影機按鈕
                     $('#startButton').on('click', function () {
+                        if (!selectedDeviceId) {
+                            console.error('No camera device selected.');
+                            return;
+                        }
+
+                        // 啟動攝影機時應用預設值
+                        applyInitialSettings();
+
                         codeReader.decodeFromVideoDevice(selectedDeviceId, 'video', (result, err) => {
                             if (result) {
                                 console.log(result);
@@ -84,26 +94,88 @@
                             }
                             if (err && !(err instanceof ZXing.NotFoundException)) {
                                 console.error(err);
-                                $('#result').text(err);
+                                $('#result').text(err.message);
                             }
                         });
+
                         console.log(`Started continuous decode from camera with id ${selectedDeviceId}`);
                     });
 
-                    // Reset button click event
+                    // 重置按鈕
                     $('#resetButton').on('click', function () {
                         codeReader.reset();
                         $('#result').text('');
-                        videoElement.css('filter', 'grayscale(0)');
-                        videoElement.css('transform', 'scale(1)');
-                        $('#grayscaleRange').val(0);
-                        $('#zoomRange').val(1);
-                        console.log('Reset.');
+                        resetControls();
+                        console.log('Camera reset.');
                     });
                 })
                 .catch((err) => {
                     console.error(err);
                 });
+
+            // 初始化控制項同步
+            syncInputs('#grayscaleRange', '#grayscaleInput');
+            syncInputs('#brightnessRange', '#brightnessInput');
+            syncInputs('#zoomRange', '#zoomInput');
+
+            // 更新影像的 Filter 屬性
+            function updateFilter() {
+                const grayscale = $('#grayscaleRange').val();
+                const brightness = $('#brightnessRange').val();
+                videoElement.css('filter', `grayscale(${grayscale}%) brightness(${brightness})`);
+            }
+
+            // 更新影像的 Zoom 屬性
+            function updateZoom() {
+                const zoom = $('#zoomRange').val();
+                videoElement.css('transform', `scale(${zoom})`);
+            }
+
+            // 啟動時應用預設值
+            function applyInitialSettings() {
+                updateFilter();
+                updateZoom();
+            }
+
+            // 重置控制項
+            function resetControls() {
+                $('#grayscaleRange').val(50);
+                $('#grayscaleInput').val(50);
+                $('#brightnessRange').val(1.5);
+                $('#brightnessInput').val(1.5);
+                $('#zoomRange').val(1.2);
+                $('#zoomInput').val(1.2);
+                updateFilter();
+                updateZoom();
+            }
+
+            // 同步滑桿與輸入框
+            function syncInputs(rangeSelector, inputSelector) {
+                // 處理輸入框輸入
+                $(inputSelector).on('input', function () {
+                    let value = parseFloat($(this).val());
+                    const min = parseFloat($(this).attr('min'));
+                    const max = parseFloat($(this).attr('max'));
+
+                    // 確保輸入的值在合法範圍內
+                    if (isNaN(value) || value < min) value = min;
+                    if (value > max) value = max;
+
+                    $(this).val(value); // 更新輸入框的值
+                    $(rangeSelector).val(value); // 同步滑桿的值
+                    updateFilter(); // 更新影像效果
+                    updateZoom();   // 更新縮放效果
+                });
+
+                // 處理滑桿變動
+                $(rangeSelector).on('input', function () {
+                    const value = $(this).val();
+                    $(inputSelector).val(value); // 同步輸入框的值
+                    updateFilter(); // 更新影像效果
+                    updateZoom();   // 更新縮放效果
+                });
+            }
         });
     </script>
+
 }
